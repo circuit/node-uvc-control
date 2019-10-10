@@ -1,0 +1,10 @@
+#!/usr/bin/env node
+const UVCControl = require("../..");
+
+const getUvcControlsConstants = require("./helpers/get-uvc-control-constants");
+
+const constants = getUvcControlsConstants(UVCControl);
+
+/* eslint-disable no-console */
+console.log(JSON.stringify(constants, null, 2));
+/* eslint-enable no-console */
