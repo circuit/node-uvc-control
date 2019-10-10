@@ -1,5 +1,6 @@
-const getUvcControlsConstants = (UVCControl) => {
+const getUvcControlsConstants = (UVCControl, uvcControlsConstants) => {
     return {
+        constants: uvcControlsConstants,
         controls: UVCControl.controls,
     };
 };
