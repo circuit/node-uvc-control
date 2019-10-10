@@ -1,5 +1,8 @@
 var usb = require('usb');
 
+var LIBUSB_CONTROL_TRANSFER_UVC_GET = usb.LIBUSB_REQUEST_TYPE_CLASS | usb.LIBUSB_RECIPIENT_DEVICE | usb.LIBUSB_ENDPOINT_IN;
+var LIBUSB_CONTROL_TRANSFER_UVC_SET = usb.LIBUSB_REQUEST_TYPE_CLASS | usb.LIBUSB_RECIPIENT_DEVICE | usb.LIBUSB_ENDPOINT_OUT;
+
 var UVC_SET_CUR = 0x01;
 var UVC_GET_CUR = 0x81;
 var UVC_GET_MIN	= 0x82;
@@ -170,7 +173,7 @@ UVCControl.prototype.close = function() {
 UVCControl.prototype.get = function(id, callback) {
   this.getControlParams(id, function(error, params) {
     if (error) return callback(error);
-    this.device.controlTransfer(0b10100001, UVC_GET_CUR, params.wValue, params.wIndex, params.wLength, function(error,buffer) {
+    this.device.controlTransfer(LIBUSB_CONTROL_TRANSFER_UVC_GET, UVC_GET_CUR, params.wValue, params.wIndex, params.wLength, function(error,buffer) {
       if (error) return callback(error);
       callback(null, buffer.readIntLE(0,params.wLength));
     });
@@ -188,7 +191,7 @@ UVCControl.prototype.set = function(id, value, callback) {
     if (error) return callback(error);
     var data = new Buffer(params.wLength);
     data.writeIntLE(value, 0, params.wLength);
-    this.device.controlTransfer(0b00100001, UVC_SET_CUR, params.wValue, params.wIndex, data, callback);
+    this.device.controlTransfer(LIBUSB_CONTROL_TRANSFER_UVC_SET, UVC_SET_CUR, params.wValue, params.wIndex, data, callback);
   }.bind(this));
 }
 
@@ -201,7 +204,7 @@ UVCControl.prototype.set = function(id, value, callback) {
 UVCControl.prototype.setRaw = function(id, value, callback) {
   this.getControlParams(id, function(error, params) {
     if (error) return callback(error);
-    this.device.controlTransfer(0b00100001, UVC_SET_CUR, params.wValue, params.wIndex, value, callback);
+    this.device.controlTransfer(LIBUSB_CONTROL_TRANSFER_UVC_SET, UVC_SET_CUR, params.wValue, params.wIndex, value, callback);
   }.bind(this));
 }
 
@@ -213,9 +216,9 @@ UVCControl.prototype.setRaw = function(id, value, callback) {
 UVCControl.prototype.range = function(id, callback) {
   this.getControlParams(id, function(error, params) {
     if (error) return callback(error);
-    this.device.controlTransfer(0b10100001, UVC_GET_MIN, params.wValue, params.wIndex, params.wLength, function(error,min) {
+    this.device.controlTransfer(LIBUSB_CONTROL_TRANSFER_UVC_GET, UVC_GET_MIN, params.wValue, params.wIndex, params.wLength, function(error,min) {
       if (error) return callback(error);
-      this.device.controlTransfer(0b10100001, UVC_GET_MAX, params.wValue, params.wIndex, params.wLength, function(error,max) {
+      this.device.controlTransfer(LIBUSB_CONTROL_TRANSFER_UVC_GET, UVC_GET_MAX, params.wValue, params.wIndex, params.wLength, function(error,max) {
         if (error) return callback(error);
         callback(null,[min.readIntLE(0,params.wLength), max.readIntLE(0,params.wLength)]);
       }.bind(this));
