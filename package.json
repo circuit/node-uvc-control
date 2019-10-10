@@ -36,6 +36,8 @@
   },
   "devDependencies": {
     "express": "^4.17.1",
+    "filter-obj": "^2.0.1",
+    "map-obj": "^4.1.0",
     "serve": "^11.0.2"
   }
 }
