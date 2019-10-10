@@ -50,7 +50,8 @@ var Controls = {
   absolutePanTilt: {
     unit: UVC_INPUT_TERMINAL_ID,
     selector: 0x0D,
-    size: 8 // dwPanAbsolute (4 bytes) + dwTiltAbsolute (4 bytes)
+    size: 8, // dwPanAbsolute (4 bytes) + dwTiltAbsolute (4 bytes)
+    fieldSize: 4
   },
   autoFocus: {
     unit: UVC_INPUT_TERMINAL_ID,
@@ -150,7 +151,8 @@ UVCControl.prototype.getControlParams = function(id, callback) {
   var params = {
     wValue: (control.selector << 8) | 0x00,
     wIndex: (unit << 8) | this.interfaceNumber,
-    wLength: control.size
+    wLength: control.size,
+    fieldSize: control.fieldSize || control.size
   };
   callback(null, params);
 };
@@ -172,7 +174,7 @@ UVCControl.prototype.get = function(id, callback) {
     if (error) return callback(error);
     this.device.controlTransfer(0b10100001, UVC_GET_CUR, params.wValue, params.wIndex, params.wLength, function(error,buffer) {
       if (error) return callback(error);
-      callback(null, buffer.readIntLE(0,params.wLength));
+      callback(null, readInts(buffer, params.wLength, params.fieldSize));
     });
   }.bind(this));
 }
@@ -187,7 +189,8 @@ UVCControl.prototype.set = function(id, value, callback) {
   this.getControlParams(id, function(error, params) {
     if (error) return callback(error);
     var data = new Buffer(params.wLength);
-    data.writeIntLE(value, 0, params.wLength);
+    // TODO handle writing multiple values
+    writeInt(data, value, params.wLength);
     this.device.controlTransfer(0b00100001, UVC_SET_CUR, params.wValue, params.wIndex, data, callback);
   }.bind(this));
 }
@@ -217,7 +220,7 @@ UVCControl.prototype.range = function(id, callback) {
       if (error) return callback(error);
       this.device.controlTransfer(0b10100001, UVC_GET_MAX, params.wValue, params.wIndex, params.wLength, function(error,max) {
         if (error) return callback(error);
-        callback(null,[min.readIntLE(0,params.wLength), max.readIntLE(0,params.wLength)]);
+        callback(null,[readInts(min, params.wLength, params.fieldSize), readInts(max, params.wLength, params.fieldSize)]);
       }.bind(this));
     }.bind(this));
   }.bind(this));
@@ -238,5 +241,37 @@ function detectVideoControlInterface(device) {
     ) {
       return i;
     }
+  }
+}
+
+function readInts(buffer, length, fieldSize) {
+  if((length%fieldSize)!==0) throw new Error("Not equal-sized fields.");
+  var output=[];
+  for (var i=0;i*fieldSize<buffer.length;i++) {
+    output.push(readInt(buffer.slice(i*fieldSize), fieldSize));
+  }
+  if (output.length === 1) {
+    return output[0];
+  }
+  return output;
+}
+
+function readInt(buffer, length) {
+  if (length === 8) {
+    var low = 0 & 0xffffffff
+    var high = (0 - low) / 0x100000000 - (low < 0 ? 1 : 0)
+    return buffer.readIntLE(low) + buffer.readUIntLE(high, 4)
+  } else {
+    return buffer.readIntLE(0, length)
+  }
+}
+
+function writeInt(buffer, value, length) {
+  if (length === 8) {
+    var low = 0 & 0xffffffff
+    var high = (0 - low) / 0x100000000 - (low < 0 ? 1 : 0)
+    return buffer.writeIntLE(value, low) + buffer.writeUIntLE(value, high, 4)
+  } else {
+    return buffer.writeIntLE(value, 0, length)
   }
 }
