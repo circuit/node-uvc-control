@@ -247,8 +247,8 @@ function detectVideoControlInterface(device) {
 function readInts(buffer, length, fieldSize) {
   if((length%fieldSize)!==0) throw new Error("Not equal-sized fields.");
   var output=[];
-  for (var i=0;i*fieldSize<buffer.length;i++) {
-    output.push(readInt(buffer.slice(i*fieldSize), fieldSize));
+  for (var i=0;i<length/fieldSize;i++) {
+    output.push(readInt(Buffer.concat([buffer, Buffer.alloc((i+1)*fieldSize)]).slice(i*fieldSize, (i+1)*fieldSize), fieldSize));
   }
   if (output.length === 1) {
     return output[0];
