@@ -188,7 +188,7 @@ UVCControl.prototype.get = function(id, callback) {
 UVCControl.prototype.set = function(id, value, callback) {
   this.getControlParams(id, function(error, params) {
     if (error) return callback(error);
-    var data = new Buffer(params.wLength);
+    var data = Buffer.alloc(params.wLength);
     // TODO handle writing multiple values
     writeInt(data, value, params.wLength);
     this.device.controlTransfer(0b00100001, UVC_SET_CUR, params.wValue, params.wIndex, data, callback);
