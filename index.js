@@ -24,7 +24,7 @@ class UVCControl extends EventEmitter {
   }
 
   init() {
-    const deviceList = usb.getDeviceList();
+    const deviceList = UVCControl.usb.getDeviceList();
 
     if (this.options.vid && this.options.pid && this.options.deviceAddress) {
 
@@ -252,7 +252,7 @@ class UVCControl extends EventEmitter {
   range(id) {
     const control = controls[id]
     if (control.requests.indexOf(REQUEST.GET_MIN) === -1) {
-      throw Error('range request not supported for ', id)
+      throw Error(`range request not supported for ${id}`)
     }
 
     let min
@@ -291,15 +291,25 @@ class UVCControl extends EventEmitter {
 UVCControl.controls = controls
 UVCControl.REQUEST = REQUEST
 
+// This workaround allows the Electron app to replace the usb object to address
+// a weird "Invalid argument" exception seen with Electron+Quasar when calling
+// usb.getDeviceList a second time (via UVCControl.discover) from the renderer thread.
+UVCControl.usb = usb;
+
 /**
  * Discover uvc devices
  */
-UVCControl.discover = () => {
+ UVCControl.discover = includeName => {
   return new Promise((resolve, reject) => {
-    var promises = usb.getDeviceList().map(UVCControl.validate)
+    const devices = UVCControl.usb.getDeviceList()
+    if (!includeName) {
+      resolve(devices.filter(isWebcam))
+      return
+    }
+    const promises = devices.map(UVCControl.validate)
     Promise.all(promises).then(results => {
-      resolve(results.filter(w => w)) // rm nulls
-    }).catch(err => reject(err))
+      resolve(results.filter(Boolean))
+    }).catch(reject)
   })
 }
 
@@ -310,22 +320,18 @@ UVCControl.discover = () => {
 UVCControl.validate = (device) => {
   return new Promise((resolve, reject) => {
 
-    if (device.deviceDescriptor.iProduct) {
-      try {
-        device.open()
-      } catch(error) {
-        resolve(false)
-      }
-
-      // http://www.usb.org/developers/defined_class/#BaseClass10h
-      if (isWebcam(device)) {
-        device.getStringDescriptor(device.deviceDescriptor.iProduct, (error, deviceName) => {
-          if (error) return reject(error)
-          device.close()
+    // http://www.usb.org/developers/defined_class/#BaseClass10h
+    if (device.deviceDescriptor.iProduct && isWebcam(device)) {
+      device.open()
+      device.getStringDescriptor(device.deviceDescriptor.iProduct, (error, deviceName) => {
+        device.close()
+        if (error) {
+          reject(error)
+        } else {
           device.name = deviceName
           resolve(device)
-        })
-      } else resolve(false)
+        }
+      })
     } else resolve(false)
   })
 }
