@@ -1,4 +1,4 @@
-const usb = require('usb')
+const {usb, getDeviceList} = require('usb')
 const {
   SC,
   CC,
@@ -24,7 +24,7 @@ class UVCControl extends EventEmitter {
   }
 
   init() {
-    const deviceList = UVCControl.usb.getDeviceList();
+    const deviceList = getDeviceList();
 
     if (this.options.vid && this.options.pid && this.options.deviceAddress) {
 
@@ -301,7 +301,7 @@ UVCControl.usb = usb;
  */
  UVCControl.discover = includeName => {
   return new Promise((resolve, reject) => {
-    const devices = UVCControl.usb.getDeviceList()
+    const devices = getDeviceList()
     if (!includeName) {
       resolve(devices.filter(isWebcam))
       return
@@ -322,7 +322,12 @@ UVCControl.validate = (device) => {
 
     // http://www.usb.org/developers/defined_class/#BaseClass10h
     if (device.deviceDescriptor.iProduct && isWebcam(device)) {
-      device.open()
+      try {
+        device.open()
+      } catch(error) {
+        resolve(false)
+        return;
+      }
       device.getStringDescriptor(device.deviceDescriptor.iProduct, (error, deviceName) => {
         device.close()
         if (error) {
